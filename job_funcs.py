@@ -334,7 +334,7 @@ def single_both(my_system, my_jobs):
 # multiple_both(my_system, my_jobs): simulates multiple jobs with both spooling and buffering
 # Pre: a System object and list of Job objects are initialized
 # Post: printed out simulation 
-def multiple_both():
+def multiple_both(my_system, my_jobs):
     curr_time = 0   # Current time
     usr_time = 0    # User time
 
@@ -345,3 +345,107 @@ def multiple_both():
     data_ready = {} # Job's input data reaches disk
 
     code_loaded = {} # Job's code in memory
+
+    # Job tracking
+    for job in my_jobs:
+        code_ready[job.name] = None
+        data_ready[job.name] = [None] * len(job.input_data)
+        code_loaded[job.name] = None
+
+    # Empty job list
+    if not my_jobs:
+        t.print_all_jobs_done(0)
+        t.print_summary(0, 0, 0)
+        return
+
+    # Process each job
+    for job_index, job in enumerate(my_jobs):
+        job_num = job.name
+
+        # Transfer job code from tape to disk
+        code_rem_space = CODE_SIZE
+
+        while code_rem_space > 0:
+            t.print_tape_to_disk_code(tape_time, job_num)
+            tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
+            code_rem_space -= my_system.tape_block_size
+
+        t.print_code_storage(tape_time, job_num)
+        print()
+        code_ready[job_num] = tape_time
+
+        # Transfer code from disk to memory
+        disk_time = max(disk_time, code_ready[job_num])
+        code_rem_space = CODE_SIZE
+
+        while code_rem_space > 0:
+            t.print_disk_to_mem_code(disk_time, job_num)
+            disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
+            code_rem_space -= my_system.disk_block_size
+
+        code_loaded[job_num] = disk_time
+        t.print_code_mem(disk_time, job_num)
+
+        # Start executing job
+        curr_time = max(curr_time, disk_time)
+        t.print_exec_start(curr_time, job_num)
+        print()
+
+        # Execute CPU bursts and handle input data
+        for i, cpu_burst in enumerate(job.cpu_bursts):
+            curr_time += cpu_burst
+            usr_time += cpu_burst
+
+            # Check for input data
+            if i < len(job.input_data):
+                input_amount = job.input_data[i]
+
+                # Check input capacity
+                if input_amount > my_system.input_size:
+                    print(f"ERROR: Job {job_num} requests {input_amount} units, "
+                        f" which exceeds the input size capacity of {my_system.input_size} units.") 
+                    
+                    return
+
+                # Job needs data
+                t.print_need_data(curr_time, job_num)
+
+                # Transfer input data from tape to disk
+                input_rem = input_amount
+
+                while input_rem > 0:
+                    t.print_tape_to_disk_data(tape_time, job_num)
+                    tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
+                    input_rem -= my_system.tape_block_size
+
+                t.print_data_storage(tape_time, job_num)
+                print()
+                data_ready[job_num][i] = tape_time
+
+                # Transfer input data from disk to memory
+                disk_time = max(disk_time, data_ready[job_num][i])
+                input_rem = input_amount
+
+                while input_rem > 0:
+                    t.print_disk_to_mem_data(disk_time, job_num)
+                    disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
+                    input_rem -= my_system.disk_block_size
+
+                t.print_input_buffer_full(disk_time, job_num)
+
+                # Continue execution when input available
+                curr_time = max(curr_time, disk_time)
+                t.print_continue_job(curr_time, job_num)
+
+        # Job finished
+        t.print_job_done(curr_time, job_num)
+        print()
+
+    # All jobs finished and summary
+    curr_time = max(curr_time, tape_time, disk_time)
+    t.print_all_jobs_done(curr_time)
+
+    system_time = curr_time - usr_time
+    t.print_summary(curr_time, usr_time, system_time)
+
+                

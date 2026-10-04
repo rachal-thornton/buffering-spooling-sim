@@ -37,6 +37,7 @@ class System:
         # Buffer size
         self.buffer_size = buffer_size
 
+    # FUNCTIONS
     # Calculate time neded to transfer data
     def calculate_transfer_time(self, amount, block_size, transfer_time):
         # Round up to nearest whole number block
