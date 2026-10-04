@@ -51,15 +51,28 @@ def print_tape_to_disk_data(time, job_num):
 def print_data_storage(time, job_num):
     print(f"{time}:\t\t DATA for JOB {job_num} in STORAGE")
 
-# TODO: implement
-# print_disk_to_mem_data(time, job_num)
-# print_input_buffer_full(time, job_num)
-# print_continue_job(time, job_num)
-# print_job_done(time, job_num)
-# print_all_jobs_done(time)
-# print_summary(total_time, user_time, system_time)
+# print_disk_to_mem_data(time, job_num): print time for disk to memory transfer for data
+def print_disk_to_mem_data(time, job_num):
+    print(f"{time}:\t\t DISK to MEMORY transfer - DATA for JOB {job_num}")
 
-# TESTING
-print_time_event()
-print_tape_to_disk_code(0, 3)
-print_tape_to_disk_data(0, 3)
+# print_input_buffer_full(time): print time when input buffer is full
+def print_input_buffer_full(time):
+    print(f"{time}:\t\t INPUT BUFFER FULL")
+
+# print_continue_job(time, job_num): print time when job is continued
+def print_continue_job(time, job_num):
+    print(f"{time}:\t\t CONTINUE JOB {job_num}")
+
+# print_job_done(time, job_num): print time when specific jobs done
+def print_job_done(time, job_num):
+    print(f"{time}:\t\t JOB {job_num} DONE")
+
+# print_all_jobs_done(time): print time when all jobs done
+def print_all_jobs_done(time):
+    print(f"{time}:\t\t ALL JOBS DONE")
+
+# print_summary(total_time, user_time, system_time): print total time needed for completion, user time, and system time
+def print_summary(total_time, user_time, system_time):
+    print(f"{total_time}:\t\t TOTAL TIME to EXECUTE ALL JOBS")
+    print(f"{user_time}:\t\t TIME to EXECUTE USER JOBS")
+    print(f"{system_time}:\t\t TIME spent by SYSTEM")
