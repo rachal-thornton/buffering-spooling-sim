@@ -5,17 +5,14 @@
 
 # IMPORTS
 from reader import read_jobs_file
-from time_stamps import *
-# from job_funcs import *
+import time_stamps as t
+from job_funcs import *
 
 # MAIN
 def main():
-    # Read system and job information from jobs.dat
-    my_system, jobs = read_jobs_file("jobs.dat")
-
-    # Print input
-    print("INPUT: \n")
-    print_input("jobs.dat")
+   # Print input
+    print("INPUT: ")
+    t.print_input("jobs.dat")
     print()
     
     # Print output
@@ -23,20 +20,32 @@ def main():
     print()
     
     # single_neither()
+    my_system, jobs = read_jobs_file("jobs.dat")    # System and job information
     print("SINGLE JOB - NO SPOOLING OR BUFFERING")
-    print_divider()
+    t.print_time_event()
+    single_neither(my_system, jobs)                 # Simulate
+    t.print_divider()
     
     # single_buff()
+    # Read system and job information from jobs.dat
+    my_system, jobs = read_jobs_file("jobs.dat")
     print("SINGLE JOB - BUFFERING ONLY")
-    print_divider()
+    t.print_time_event()
+    t.print_divider()
     
     # single_both()
+    # Read system and job information from jobs.dat
+    my_system, jobs = read_jobs_file("jobs.dat")
     print("SINGLE JOB - SPOOLING AND BUFFERING")
-    print_divider()
+    t.print_time_event()
+    t.print_divider()
     
     # multiple_both()
+    # Read system and job information from jobs.dat
+    my_system, jobs = read_jobs_file("jobs.dat")
     print("MULTIPLE JOBS - SPOOLING AND BUFFERING")
-    print_divider()
+    t.print_time_event()
+    t.print_divider()
 
 if __name__ == "__main__":
     main()

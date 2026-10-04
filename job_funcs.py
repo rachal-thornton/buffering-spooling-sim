@@ -4,24 +4,106 @@
 # Desc: This program handles all job functions needed to simulate all cases of buffering and/or spooling.
 
 # IMPORTS
-from time_stamps import *
-from system import System 
-from job import Job
+import time_stamps as t
+
+# CONSTANTS
+CODE_SIZE = 200
+INPUT_SIZE = 100
 
 # FUNCTIONS
 # single_neither(my_system, my_jobs): simulates a single job on a system with no buffering or spooling
 # Pre: a System object and list of Job objects are initialized
 # Post: printed out simulation 
 def single_neither(my_system, my_jobs):
-    single_neither_time = 0     # Variable to hold total overall time
-    single_neither_usr_job = 0  # Variable to hold only total user job time
+    curr_time = 0       # Current time
+    usr_time = 0        # User time
 
     # Simulate for each job in the list
     for job in my_jobs:
-        # Transfer tape to disk
-        # Transfer disk to memory
-        # Start execution
-    # Summary of time
+        # Identify current job number
+        job_num = job.name
+
+        # Transfer job code from tape to disk
+        code_rem_space = CODE_SIZE
+
+        while code_rem_space > 0:
+            t.print_tape_to_disk_code(curr_time, job_num)
+            curr_time += my_system.tape_to_disk_time(my_system.tape_block_size)
+            code_rem_space -= my_system.tape_block_size
+
+        t.print_code_storage(curr_time, job_num)
+        print()
+
+        # Transfer job code from disk to memory
+        code_rem_space = CODE_SIZE
+
+        while code_rem_space > 0:
+            t.print_disk_to_mem_code(curr_time, job_num)
+            curr_time += my_system.disk_to_mem_time(my_system.disk_block_size)
+            code_rem_space -= my_system.disk_block_size
+
+        t.print_code_mem(curr_time, job_num)
+        print()
+        
+        # Execution for each CPU burst
+        for i, cpu_burst in enumerate(job.cpu_bursts):
+            # Print starting execution only if first CPU burst
+            if i == 0:
+                t.print_exec_start(curr_time, job_num)
+            
+            curr_time += cpu_burst
+            usr_time += cpu_burst
+
+            # Check for input after CPU burst
+            if i < len(job.input_data):
+                input_amount = job.input_data[i]
+
+                # Check input capacity
+                if input_amount > my_system.input_size:
+                    print(f"ERROR: Job {job_num} requests {input_amount} units, "
+                          f"which exceeds the input size capacity of {my_system.input_size} units.")
+                    return
+                
+                # Job needs data
+                t.print_need_data(curr_time, job_num)
+                print()
+
+                # Transfer input data from tape to disk
+                if i == 0:
+                    input_rem = input_amount
+
+                    while input_rem > 0:
+                        t.print_tape_to_disk_data(curr_time, job_num)
+                        curr_time += my_system.tape_to_disk_time(my_system.tape_block_size)
+                        input_rem -= my_system.tape_block_size
+
+                    t.print_data_storage(curr_time, job_num)
+                    print()
+
+                # Transfer input data from disk to memory
+                input_rem = input_amount
+
+                while input_rem > 0:
+                    t.print_disk_to_mem_data(curr_time, job_num)
+                    curr_time += my_system.disk_to_mem_time(my_system.disk_block_size)
+                    input_rem -= my_system.disk_block_size
+
+                # Input buffer full
+                t.print_input_buffer_full(curr_time, job_num)
+                print()
+
+                # Continue job
+                t.print_continue_job(curr_time, job_num)
+                print()
+            
+        # Current job is complete
+        t.print_job_done(curr_time, job_num)
+        print()
+
+    # All jobs are complete, summary of time
+    t.print_all_jobs_done(curr_time)
+    system_time = curr_time - usr_time
+    t.print_summary(curr_time, usr_time, system_time)
 
 # single_buff(my_system, my_jobs): simulates a single job on a system with only buffering
 # Pre: a System object and list of Job objects are initialized

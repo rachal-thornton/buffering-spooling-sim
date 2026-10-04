@@ -1,7 +1,7 @@
 # Author: Rachal Thornton
 # Class: CS 405
 # Date: 10/04/26
-# Desc: This program defines a class for a System.
+# Desc: This program defines a class and useful functions for a System.
 
 # CLASSES
 # System class
@@ -36,3 +36,17 @@ class System:
 
         # Buffer size
         self.buffer_size = buffer_size
+
+    # Calculate time neded to transfer data
+    def calculate_transfer_time(self, amount, block_size, transfer_time):
+        # Round up to nearest whole number block
+        blocks = (amount + block_size - 1) // block_size
+        return blocks * transfer_time
+
+    # Calculate tape to disk transfer time
+    def tape_to_disk_time(self, amount):
+        return self.calculate_transfer_time(amount, self.tape_block_size, self.tape_transfer_time)
+
+    # Calculate disk to memory transfer time
+    def disk_to_mem_time(self, amount):
+        return self.calculate_transfer_time(amount, self.disk_block_size, self.disk_transfer_time)
