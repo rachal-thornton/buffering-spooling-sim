@@ -9,6 +9,8 @@ import time_stamps as t
 from job_funcs import *
 
 # MAIN
+# Pre: All functions inside main implemented correctly
+# Post: Simulates 4 cases 
 def main():
    # Print input
     print("INPUT: ")
