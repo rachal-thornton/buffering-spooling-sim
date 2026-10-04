@@ -263,6 +263,7 @@ def single_both(my_system, my_jobs):
         curr_time = max(curr_time, code_ready[job_num])
 
         # Transfer job code from disk to memory
+        disk_time = max(disk_time, curr_time)
         code_rem_space = CODE_SIZE
 
         while code_rem_space > 0:
@@ -270,7 +271,7 @@ def single_both(my_system, my_jobs):
             disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
             code_rem_space -= my_system.disk_block_size
 
-        curr_time = max(curr_time, disk_time)
+        curr_time = disk_time
         t.print_code_mem(curr_time, job_num)
         print()
 
