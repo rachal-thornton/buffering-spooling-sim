@@ -102,6 +102,8 @@ def single_neither(my_system, my_jobs):
 
     # All jobs are complete, summary of time
     t.print_all_jobs_done(curr_time)
+    print() 
+
     system_time = curr_time - usr_time
     t.print_summary(curr_time, usr_time, system_time)
 
@@ -203,6 +205,7 @@ def single_buff(my_system, my_jobs):
 
     # All jobs complete, summary
     t.print_all_jobs_done(curr_time)
+    print()
 
     system_time = curr_time - usr_time
     t.print_summary(curr_time, usr_time, system_time)
@@ -251,8 +254,6 @@ def single_both(my_system, my_jobs):
             t.print_data_storage(tape_time, job_num)
             print()
             data_ready[job_num].append(tape_time)
-    
-    print()
 
     # Execute jobs
     for job in my_jobs:
@@ -296,6 +297,7 @@ def single_both(my_system, my_jobs):
 
                 # Job needs data
                 t.print_need_data(cpu_time, job_num)
+                print()
 
                 # Determine when requested data is available
                 input_time = max(disk_time, data_ready[job_num][i])
@@ -326,6 +328,7 @@ def single_both(my_system, my_jobs):
     # All jobs complete, summary
     curr_time = max(curr_time, disk_time, tape_time)
     t.print_all_jobs_done(curr_time)
+    print()
 
     system_time = curr_time - usr_time
     t.print_summary(curr_time, usr_time, system_time)
@@ -359,7 +362,7 @@ def multiple_both(my_system, my_jobs):
         return
 
     # Process each job
-    for job_index, job in enumerate(my_jobs):
+    for i, job in enumerate(my_jobs):
         job_num = job.name
 
         # Transfer job code from tape to disk
@@ -385,6 +388,7 @@ def multiple_both(my_system, my_jobs):
 
         code_loaded[job_num] = disk_time
         t.print_code_mem(disk_time, job_num)
+        print()
 
         # Start executing job
         curr_time = max(curr_time, disk_time)
@@ -409,6 +413,7 @@ def multiple_both(my_system, my_jobs):
 
                 # Job needs data
                 t.print_need_data(curr_time, job_num)
+                print()
 
                 # Transfer input data from tape to disk
                 input_rem = input_amount
@@ -432,10 +437,12 @@ def multiple_both(my_system, my_jobs):
                     input_rem -= my_system.disk_block_size
 
                 t.print_input_buffer_full(disk_time, job_num)
+                print()
 
                 # Continue execution when input available
                 curr_time = max(curr_time, disk_time)
                 t.print_continue_job(curr_time, job_num)
+                print()
 
         # Job finished
         t.print_job_done(curr_time, job_num)
@@ -444,6 +451,7 @@ def multiple_both(my_system, my_jobs):
     # All jobs finished and summary
     curr_time = max(curr_time, tape_time, disk_time)
     t.print_all_jobs_done(curr_time)
+    print()
 
     system_time = curr_time - usr_time
     t.print_summary(curr_time, usr_time, system_time)
