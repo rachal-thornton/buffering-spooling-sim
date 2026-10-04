@@ -28,23 +28,26 @@ def main():
     
     # single_buff()
     # Read system and job information from jobs.dat
-    my_system, jobs = read_jobs_file("jobs.dat")
+    my_system, jobs = read_jobs_file("jobs.dat")    # System and job information
     print("SINGLE JOB - BUFFERING ONLY")
     t.print_time_event()
+    single_buff(my_system, jobs)                    # Simulate
     t.print_divider()
     
     # single_both()
     # Read system and job information from jobs.dat
-    my_system, jobs = read_jobs_file("jobs.dat")
+    my_system, jobs = read_jobs_file("jobs.dat")    # System and job information
     print("SINGLE JOB - SPOOLING AND BUFFERING")
     t.print_time_event()
+    single_both(my_system, jobs)                    # Simulate
     t.print_divider()
     
     # multiple_both()
     # Read system and job information from jobs.dat
-    my_system, jobs = read_jobs_file("jobs.dat")
+    my_system, jobs = read_jobs_file("jobs.dat")    # System and job information
     print("MULTIPLE JOBS - SPOOLING AND BUFFERING")
     t.print_time_event()
+    multiple_both(my_system, jobs)                  # Simulate
     t.print_divider()
 
 if __name__ == "__main__":
