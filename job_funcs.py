@@ -210,7 +210,6 @@ def single_buff(my_system, my_jobs):
     system_time = curr_time - usr_time
     t.print_summary(curr_time, usr_time, system_time)
 
-
 # single_both(my_system, my_jobs): simulates a single job with both spooling and buffering
 # Pre: a System object and list of Job objects are initialized
 # Post: printed out simulation 
@@ -224,6 +223,16 @@ def single_both(my_system, my_jobs):
     code_ready = {} # Job's code reaches disk
     data_ready = {} # Job's input data reaches disk
 
+    events = []     # Handles event timing (time, order, print function, job name, blank line after or not)
+
+    # Check input capacity
+    for job in my_jobs:
+        for input_amount in job.input_data:
+            if input_amount > my_system.input_size:
+                print(f"ERROR: Job {job.name} requests {input_amount} units, "
+                      f"which exceeds the input size capacity of {my_system.input_size} units.")
+                return
+
     # Spool all jobs from tape to disk
     for job in my_jobs:
         job_num = job.name
@@ -232,28 +241,23 @@ def single_both(my_system, my_jobs):
         code_rem_space = CODE_SIZE
 
         while code_rem_space > 0:
-            t.print_tape_to_disk_code(tape_time, job_num)
+            events.append((tape_time, len(events), t.print_tape_to_disk_code, job_num, False))
             tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
             code_rem_space -= my_system.tape_block_size
 
-        t.print_code_storage(tape_time, job_num)
-        print()
+        events.append((tape_time, len(events), t.print_code_storage, job_num, True))
         code_ready[job_num] = tape_time
 
-        # Transfer job input data from tape to disk
-        data_ready[job_num] = []
+        # Transfer job input data from tape to disk (once per job)
+        data_rem_space = INPUT_SIZE
 
-        for input_amount in job.input_data:
-            input_rem = input_amount
+        while data_rem_space > 0:
+            events.append((tape_time, len(events), t.print_tape_to_disk_data, job_num, False))
+            tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
+            data_rem_space -= my_system.tape_block_size
 
-            while input_rem > 0:
-                t.print_tape_to_disk_data(tape_time, job_num)
-                tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
-                input_rem -= my_system.tape_block_size
-
-            t.print_data_storage(tape_time, job_num)
-            print()
-            data_ready[job_num].append(tape_time)
+        events.append((tape_time, len(events), t.print_data_storage, job_num, True))
+        data_ready[job_num] = tape_time
 
     # Execute jobs
     for job in my_jobs:
@@ -267,64 +271,65 @@ def single_both(my_system, my_jobs):
         code_rem_space = CODE_SIZE
 
         while code_rem_space > 0:
-            t.print_disk_to_mem_code(disk_time, job_num)
+            events.append((disk_time, len(events), t.print_disk_to_mem_code, job_num, False))
             disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
             code_rem_space -= my_system.disk_block_size
 
         curr_time = disk_time
-        t.print_code_mem(curr_time, job_num)
-        print()
+        events.append((curr_time, len(events), t.print_code_mem, job_num, True))
 
         # Start executing job
-        t.print_exec_start(curr_time, job_num)
-        print()
+        events.append((curr_time, len(events), t.print_exec_start, job_num, True))
         cpu_time = curr_time
+
+        # Number of inputs this job will use
+        num_inputs = min(len(job.input_data), len(job.cpu_bursts))
 
         # Execute CPU bursts
         for i, cpu_burst in enumerate(job.cpu_bursts):
-            cpu_time += cpu_burst
-            usr_time += cpu_burst
-
-            # Check if job needs input data
-            if i < len(job.input_data):
+            # Buffer input i
+            if i < num_inputs:
                 input_amount = job.input_data[i]
 
-                # Check input capacity
-                if input_amount > my_system.input_size:
-                    print(f"ERROR: Job {job_num} requests {input_amount} units, "
-                          f" which exceeds the input size capacity of {my_system.input_size} units.")
+                # Check when requested data can start moving
+                input_time = max(disk_time, data_ready[job_num], cpu_time)
 
-                    return
-
-                # Job needs data
-                t.print_need_data(cpu_time, job_num)
-                print()
-
-                # Determine when requested data is available
-                input_time = max(disk_time, data_ready[job_num][i])
-
-                # Transfer input data from disk to memory/buffer
+                # Transfer input data from disk to buffer
                 input_rem = input_amount
 
                 while input_rem > 0:
-                    t.print_disk_to_mem_data(input_time, job_num)
+                    events.append((input_time, len(events), t.print_disk_to_mem_data, job_num, False))
                     input_time += my_system.disk_to_mem_time(my_system.disk_block_size)
                     input_rem -= my_system.disk_block_size
 
                 disk_time = input_time
-                t.print_input_buffer_full(input_time, job_num)
-                print()
+                events.append((input_time, len(events), t.print_input_buffer_full, job_num, True))
+                buffer_ready = input_time
 
-                # Resume job when CPU and inmput are ready
-                cpu_time = max(cpu_time, input_time)
-                t.print_continue_job(cpu_time, job_num)
-                print()
+            cpu_time += cpu_burst
+            usr_time += cpu_burst
+
+            # Check if job needs input data
+            if i < num_inputs:
+
+                # Job needs data
+                events.append((cpu_time, len(events), t.print_need_data, job_num, True))
+
+                # Resume job when CPU and input are ready
+                cpu_time = max(cpu_time, buffer_ready)
+                events.append((cpu_time, len(events), t.print_continue_job, job_num, True))
 
         curr_time = cpu_time
 
         # Job complete
-        t.print_job_done(curr_time, job_num)
-        print()
+        events.append((curr_time, len(events), t.print_job_done, job_num, True))
+
+    # Print all events in chronological order
+    for ev_time, _, ev_func, ev_job, ev_blank in sorted(events, key=lambda e: (e[0], e[1])):
+        ev_func(ev_time, ev_job)
+
+        if ev_blank:
+            print()
 
     # All jobs complete, summary
     curr_time = max(curr_time, disk_time, tape_time)
@@ -348,13 +353,7 @@ def multiple_both(my_system, my_jobs):
     code_ready = {} # Job's code reaches disk
     data_ready = {} # Job's input data reaches disk
 
-    code_loaded = {} # Job's code in memory
-
-    # Job tracking
-    for job in my_jobs:
-        code_ready[job.name] = None
-        data_ready[job.name] = [None] * len(job.input_data)
-        code_loaded[job.name] = None
+    events = []     # Handles event timing (time, order, print function, job name, blank line after or not)
 
     # Empty job list
     if not my_jobs:
@@ -362,92 +361,109 @@ def multiple_both(my_system, my_jobs):
         t.print_summary(0, 0, 0)
         return
 
-    # Process each job
-    for i, job in enumerate(my_jobs):
+    # Check input capacity
+    for job in my_jobs:
+        for input_amount in job.input_data:
+            if input_amount > my_system.input_size:
+                print(f"ERROR: Job {job.name} requests {input_amount} units, "
+                      f"which exceeds the input size capacity of {my_system.input_size} units.")
+                return
+
+    # Spool all jobs from tape to disk
+    for job in my_jobs:
         job_num = job.name
 
         # Transfer job code from tape to disk
         code_rem_space = CODE_SIZE
 
         while code_rem_space > 0:
-            t.print_tape_to_disk_code(tape_time, job_num)
+            events.append((tape_time, len(events), t.print_tape_to_disk_code, job_num, False))
             tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
             code_rem_space -= my_system.tape_block_size
 
-        t.print_code_storage(tape_time, job_num)
-        print()
+        events.append((tape_time, len(events), t.print_code_storage, job_num, True))
         code_ready[job_num] = tape_time
+
+        # Transfer job input data from tape to disk )
+        data_rem_space = INPUT_SIZE
+
+        while data_rem_space > 0:
+            events.append((tape_time, len(events), t.print_tape_to_disk_data, job_num, False))
+            tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
+            data_rem_space -= my_system.tape_block_size
+
+        events.append((tape_time, len(events), t.print_data_storage, job_num, True))
+        data_ready[job_num] = tape_time
+
+    # Process each job
+    for job in my_jobs:
+        job_num = job.name
 
         # Transfer code from disk to memory
         disk_time = max(disk_time, code_ready[job_num])
         code_rem_space = CODE_SIZE
 
         while code_rem_space > 0:
-            t.print_disk_to_mem_code(disk_time, job_num)
+            events.append((disk_time, len(events), t.print_disk_to_mem_code, job_num, False))
             disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
             code_rem_space -= my_system.disk_block_size
 
-        code_loaded[job_num] = disk_time
-        t.print_code_mem(disk_time, job_num)
-        print()
+        code_loaded = disk_time
+        events.append((code_loaded, len(events), t.print_code_mem, job_num, True))
 
         # Start executing job
-        curr_time = max(curr_time, disk_time)
-        t.print_exec_start(curr_time, job_num)
-        print()
+        curr_time = max(curr_time, code_loaded)
+        events.append((curr_time, len(events), t.print_exec_start, job_num, True))
+
+        # Number of inputs this job will use
+        num_inputs = min(len(job.input_data), len(job.cpu_bursts))
 
         # Execute CPU bursts and handle input data
         for i, cpu_burst in enumerate(job.cpu_bursts):
+
+            # Buffer input i
+            if i < num_inputs:
+                input_amount = job.input_data[i]
+
+                if i == 0:
+                    earliest = code_loaded
+                else:
+                    earliest = curr_time
+
+                # Transfer input data from disk to buffer
+                disk_time = max(disk_time, data_ready[job_num], earliest)
+                input_rem = input_amount
+
+                while input_rem > 0:
+                    events.append((disk_time, len(events), t.print_disk_to_mem_data, job_num, False))
+                    disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
+                    input_rem -= my_system.disk_block_size
+
+                events.append((disk_time, len(events), t.print_input_buffer_full, job_num, True))
+                buffer_ready = disk_time
+
             curr_time += cpu_burst
             usr_time += cpu_burst
 
             # Check for input data
-            if i < len(job.input_data):
-                input_amount = job.input_data[i]
-
-                # Check input capacity
-                if input_amount > my_system.input_size:
-                    print(f"ERROR: Job {job_num} requests {input_amount} units, "
-                        f" which exceeds the input size capacity of {my_system.input_size} units.") 
-                    
-                    return
+            if i < num_inputs:
 
                 # Job needs data
-                t.print_need_data(curr_time, job_num)
-                print()
-
-                # Transfer input data from tape to disk
-                input_rem = input_amount
-
-                while input_rem > 0:
-                    t.print_tape_to_disk_data(tape_time, job_num)
-                    tape_time += my_system.tape_to_disk_time(my_system.tape_block_size)
-                    input_rem -= my_system.tape_block_size
-
-                t.print_data_storage(tape_time, job_num)
-                print()
-                data_ready[job_num][i] = tape_time
-
-                # Transfer input data from disk to memory
-                disk_time = max(disk_time, data_ready[job_num][i])
-                input_rem = input_amount
-
-                while input_rem > 0:
-                    t.print_disk_to_mem_data(disk_time, job_num)
-                    disk_time += my_system.disk_to_mem_time(my_system.disk_block_size)
-                    input_rem -= my_system.disk_block_size
-
-                t.print_input_buffer_full(disk_time, job_num)
-                print()
+                events.append((curr_time, len(events), t.print_need_data, job_num, True))
 
                 # Continue execution when input available
-                curr_time = max(curr_time, disk_time)
-                t.print_continue_job(curr_time, job_num)
-                print()
+                curr_time = max(curr_time, buffer_ready)
+                events.append((curr_time, len(events), t.print_continue_job, job_num, True))
 
         # Job finished
-        t.print_job_done(curr_time, job_num)
-        print()
+        events.append((curr_time, len(events), t.print_job_done, job_num, True))
+
+    # Print all events in chronological order
+    for ev_time, _, ev_func, ev_job, ev_blank in sorted(events, key=lambda e: (e[0], e[1])):
+        ev_func(ev_time, ev_job)
+
+        if ev_blank:
+            print()
 
     # All jobs finished and summary
     curr_time = max(curr_time, tape_time, disk_time)
@@ -456,5 +472,3 @@ def multiple_both(my_system, my_jobs):
 
     system_time = curr_time - usr_time
     t.print_summary(curr_time, usr_time, system_time)
-
-                
